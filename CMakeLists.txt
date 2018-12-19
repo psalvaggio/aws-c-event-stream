@@ -11,9 +11,9 @@
 # express or implied. See the License for the specific language governing
 # permissions and limitations under the License.
 cmake_minimum_required (VERSION 3.1)
-project (aws-c-event-stream C)
+project (aws-c-event-stream LANGUAGES C VERSION 1.0.0)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_INSTALL_PREFIX}/lib/cmake")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 include(AwsCFlags)
 include(AwsSanitizers)
 include(CheckCCompilerFlag)
@@ -69,26 +69,44 @@ find_package(aws-checksums REQUIRED)
 target_link_libraries(${CMAKE_PROJECT_NAME} PUBLIC AWS::aws-c-common AWS::aws-checksums)
 
 # installation & packaging
-set(LIBRARY_DIRECTORY ${CMAKE_INSTALL_PREFIX}/lib)
+set(LIBRARY_DIRECTORY lib)
+if (UNIX AND NOT APPLE)
+    include(GNUInstallDirs)
+    set(LIBRARY_DIRECTORY ${CMAKE_INSTALL_LIBDIR})
+endif()
 
-install(FILES ${AWS_EVENT_STREAM_HEADERS} DESTINATION "include/aws/event-stream")
-install(TARGETS ${CMAKE_PROJECT_NAME}
-    EXPORT ${CMAKE_PROJECT_NAME}-targets
-    ARCHIVE DESTINATION ${LIBRARY_DIRECTORY}
-    LIBRARY DESTINATION ${LIBRARY_DIRECTORY}
-    RUNTIME DESTINATION lib)
+install(FILES ${AWS_EVENT_STREAM_HEADERS}
+        DESTINATION "include/aws/event-stream"
+        COMPONENT Development)
+
+if (BUILD_SHARED_LIBS)
+  install(TARGETS ${CMAKE_PROJECT_NAME}
+      EXPORT ${CMAKE_PROJECT_NAME}-targets
+      LIBRARY
+        DESTINATION ${LIBRARY_DIRECTORY}
+        COMPONENT Runtime
+      RUNTIME
+        DESTINATION ${LIBRARY_DIRECTORY}
+        COMPONENT Runtime)
+else ()
+  install(TARGETS ${CMAKE_PROJECT_NAME}
+      EXPORT ${CMAKE_PROJECT_NAME}-targets
+      ARCHIVE DESTINATION ${LIBRARY_DIRECTORY}
+      COMPONENT Development)
+endif()
 
 install(EXPORT "${CMAKE_PROJECT_NAME}-targets"
-    DESTINATION "${LIBRARY_DIRECTORY}/${CMAKE_PROJECT_NAME}/cmake/"
-    NAMESPACE AWS::)
+    DESTINATION "${LIBRARY_DIRECTORY}/cmake/${CMAKE_PROJECT_NAME}"
+    NAMESPACE AWS::
+    COMPONENT Development)
 
 configure_file("cmake/${CMAKE_PROJECT_NAME}-config.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-config.cmake"
     @ONLY)
 
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_PROJECT_NAME}-config.cmake"
-    DESTINATION "${LIBRARY_DIRECTORY}/${CMAKE_PROJECT_NAME}/cmake/")
-
+    DESTINATION "${LIBRARY_DIRECTORY}/cmake/${CMAKE_PROJECT_NAME}"
+    COMPONENT Development)
 
 include(CTest)
 enable_testing()
@@ -99,3 +117,5 @@ if(NOT MSVC)
 endif()
 
 add_subdirectory(bin)
+
+include(cmake/CPackConfig.cmake)
